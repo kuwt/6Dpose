@@ -5,8 +5,8 @@
 #include <assert.h>
 #include <chrono>  // for high_resolution_clock
 #include <opencv2/rgbd.hpp>
-#include <opencv2/dnn.hpp>
-#include <opencv2/cudaimgproc.hpp>
+//#include <opencv2/dnn.hpp>
+//#include <opencv2/cudaimgproc.hpp>
 using namespace std;
 using namespace cv;
 
@@ -143,7 +143,7 @@ void detect_test(){
         boxes.push_back(box);
         scores.push_back(match.similarity);
     }
-    cv::dnn::NMSBoxes(boxes, scores, 0, 0.4, idxs);
+   // cv::dnn::NMSBoxes(boxes, scores, 0, 0.4, idxs);
 
     Mat draw = rgb;
     for(auto idx : idxs){
@@ -196,7 +196,7 @@ void dataset_test(){
             boxes.push_back(box);
             scores.push_back(match.similarity);
         }
-        cv::dnn::NMSBoxes(boxes, scores, 0, 0.4, idxs);
+      //  cv::dnn::NMSBoxes(boxes, scores, 0, 0.4, idxs);
 
         Mat draw = rgb;
         for(auto idx : idxs){
@@ -219,8 +219,8 @@ void dataset_test(){
 
 int main(){
 
-//    train_test();
-    detect_test();
+    train_test();
+    //detect_test();
 //dataset_test();
     return 0;
 }

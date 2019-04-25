@@ -2,7 +2,7 @@
 #include <memory>
 #include <iostream>
 #include "linemod_icp.h"
-#include <opencv2/dnn.hpp>
+//#include <opencv2/dnn.hpp>
 #include <assert.h>
 using namespace std;
 using namespace cv;
