@@ -381,6 +381,7 @@ protected:
  * Default parameter settings suitable for VGA images.
  */
 cv::Ptr<linemodLevelup::Detector> getDefaultLINEMOD();
+cv::Ptr<linemodLevelup::Detector> getDefaultLINE();
 }
 
 #endif

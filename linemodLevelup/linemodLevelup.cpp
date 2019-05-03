@@ -486,7 +486,9 @@ public:
 
   virtual void pyrDown();
 
-  void getDepth(Mat& depth){this->depth = depth.clone();}
+  void getDepth(Mat& depth){
+	 // this->depth = depth.clone();
+  }
 
 protected:
   /// Recalculate angle and magnitude images
@@ -498,7 +500,7 @@ protected:
   int pyramid_level;
   Mat angle;
   Mat magnitude;
-  Mat depth;
+ // Mat depth;
 
   float weak_threshold;
   size_t num_features;
@@ -535,9 +537,9 @@ void ColorGradientPyramid::pyrDown()
   cv::pyrDown(src, next_src, size);
   src = next_src;
 
-  Mat next_depth;
-  cv::pyrDown(depth, next_depth, size);
-  depth = next_depth;
+  //Mat next_depth;
+  //cv::pyrDown(depth, next_depth, size);
+  //depth = next_depth;
 
   if (!mask.empty())
   {
@@ -637,8 +639,6 @@ Ptr<QuantizedPyramid> ColorGradient::processImpl(const std::vector<cv::Mat> &src
 {
 
   auto pd = makePtr<ColorGradientPyramid>(src[0], mask, weak_threshold, num_features, strong_threshold);
-  auto depth = src[1];
-  pd->getDepth(depth);
   return pd;
 }
 
@@ -1635,7 +1635,7 @@ Detector::Detector()
     modalities.push_back(makePtr<ColorGradient>());
     modalities.push_back(makePtr<DepthNormal>());
     this->modalities = modalities;
-    pyramid_levels = 2;
+    pyramid_levels = 1;
     T_at_level.push_back(5);
     T_at_level.push_back(8);
 }
@@ -1927,12 +1927,13 @@ int Detector::addTemplate(const std::vector<Mat>& sources, const std::string& cl
     for (int l = 0; l < pyramid_levels; ++l)
     {
       /// @todo Could do mask subsampling here instead of in pyrDown()
-      if (l > 0)
-        qp->pyrDown();
-
-      bool success = qp->extractTemplate(tp[l*num_modalities + i]);
-      if (!success)
-        return -1;
+		if (l > 0)
+		{
+			qp->pyrDown();
+		}
+		bool success = qp->extractTemplate(tp[l*num_modalities + i]);
+		if (!success)
+		return -1;
     }
   }
 
@@ -2112,6 +2113,26 @@ void Detector::writeClasses(const std::string& format) const
     FileStorage fs(filename, FileStorage::WRITE);
     writeClass(class_id, fs);
   }
+}
+
+
+static const int T_DEFAULTS[] = { 5, 8 };
+
+Ptr<Detector> getDefaultLINE()
+{
+	std::vector< Ptr<Modality> > modalities;
+	modalities.push_back(makePtr<ColorGradient>());
+	std::vector<int> t;
+	t.push_back(T_DEFAULTS[0]);
+	return makePtr<Detector>(modalities, t);
+}
+
+Ptr<Detector> getDefaultLINEMOD()
+{
+	std::vector< Ptr<Modality> > modalities;
+	modalities.push_back(makePtr<ColorGradient>());
+	modalities.push_back(makePtr<DepthNormal>());
+	return makePtr<Detector>(modalities, std::vector<int>(T_DEFAULTS, T_DEFAULTS + 2));
 }
 
 }
