@@ -4,6 +4,9 @@
 #include "linemod_icp.h"
 //#include <opencv2/dnn.hpp>
 #include <assert.h>
+#include "imageFileIO.h"
+
+
 using namespace std;
 using namespace cv;
 
@@ -486,9 +489,7 @@ public:
 
   virtual void pyrDown();
 
-  void getDepth(Mat& depth){
-	 // this->depth = depth.clone();
-  }
+  virtual bool extractData(std::vector<cv::Mat> &mats) const;
 
 protected:
   /// Recalculate angle and magnitude images
@@ -500,7 +501,6 @@ protected:
   int pyramid_level;
   Mat angle;
   Mat magnitude;
- // Mat depth;
 
   float weak_threshold;
   size_t num_features;
@@ -611,6 +611,14 @@ bool ColorGradientPyramid::extractTemplate(Template& templ) const
   templ.pyramid_level = pyramid_level;
 
   return true;
+}
+
+bool ColorGradientPyramid::extractData(std::vector<cv::Mat> &mats) const
+{
+	mats.clear();
+	mats.push_back(magnitude);
+	mats.push_back(angle);
+	return true;
 }
 
 ColorGradient::ColorGradient()
@@ -1920,10 +1928,26 @@ int Detector::addTemplate(const std::vector<Mat>& sources, const std::string& cl
   tp.resize(num_modalities * pyramid_levels);
 
   // For each modality...
-  for (int i = 0; i < num_modalities; ++i)
+  for (int modIdx = 0; modIdx < num_modalities; ++modIdx)
   {
     // Extract a template at each pyramid level
-    Ptr<QuantizedPyramid> qp = modalities[i]->process(sources, object_mask);
+    Ptr<QuantizedPyramid> qp = modalities[modIdx]->process(sources, object_mask);
+
+
+	if (numTemplates() == 0)
+	{
+		int currentTemplIdx = numTemplates();
+		std::vector<cv::Mat> mats;
+		qp->extractData(mats);
+		for (int j = 0; j < mats.size(); ++j)
+		{
+			cv::Mat convertedMat;
+			mats.at(j).convertTo(convertedMat, CV_32FC1);
+			char buffer[1024];
+			snprintf(buffer, 1024, ".\\log\\modality_%d_mat_%d_templ_%d.tif", modIdx, j, currentTemplIdx);
+			imageFileIO::FILE_SaveImageTiffR(convertedMat, buffer);
+		}
+	}
     for (int l = 0; l < pyramid_levels; ++l)
     {
       /// @todo Could do mask subsampling here instead of in pyrDown()
@@ -1931,9 +1955,11 @@ int Detector::addTemplate(const std::vector<Mat>& sources, const std::string& cl
 		{
 			qp->pyrDown();
 		}
-		bool success = qp->extractTemplate(tp[l*num_modalities + i]);
+		bool success = qp->extractTemplate(tp[l*num_modalities + modIdx]);
 		if (!success)
-		return -1;
+		{
+			return -1;
+		}
     }
   }
 

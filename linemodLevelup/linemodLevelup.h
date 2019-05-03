@@ -74,6 +74,7 @@ public:
    */
   virtual void pyrDown() =0;
 
+  virtual bool extractData(std::vector<cv::Mat> &mats) const { return true; };
 protected:
   /// Candidate feature with a score
   struct Candidate
