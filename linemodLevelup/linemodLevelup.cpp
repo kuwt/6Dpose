@@ -6,6 +6,7 @@
 #include <assert.h>
 #include "imageFileIO.h"
 
+bool g_isLog = false;
 
 using namespace std;
 using namespace cv;
@@ -709,6 +710,7 @@ static void quantizedNormals(const Mat& src, Mat& dst, int distance_threshold,
   dst = Mat::zeros(src.size(), CV_8U);
 
   const unsigned short * lp_depth   = src.ptr<ushort>();
+
   unsigned char  * lp_normals = dst.ptr<uchar>();
 
   const int l_W = src.cols;
@@ -734,6 +736,7 @@ static void quantizedNormals(const Mat& src, Mat& dst, int distance_threshold,
 
     for (int l_x = l_r; l_x < l_W - l_r - 1; ++l_x)
     {
+		// for each line, lp_line is iterating at the end of thos loop.
       long l_d = lp_line[0];
 
       if (l_d < distance_threshold)
@@ -808,8 +811,6 @@ public:
 
   virtual void pyrDown();
 
-  void getDepth(Mat& depth){this->depth = depth.clone();}
-
   virtual bool extractData(std::vector<cv::Mat> &mats) const;
 protected:
   Mat mask;
@@ -830,7 +831,11 @@ DepthNormalPyramid::DepthNormalPyramid(const Mat& src, const Mat& _mask,
     num_features(_num_features),
     extract_threshold(_extract_threshold)
 {
-  quantizedNormals(src, normal, distance_threshold, difference_threshold);
+	// here a clone is needed since quantizedNormals use pointer arithmetic, in which if 
+	// we operate on a roi buffer, the element access will be incorrect.
+	cv::Mat temp_depth = src.clone();
+	 quantizedNormals(temp_depth, normal, distance_threshold, difference_threshold);
+	 depth = temp_depth;
 }
 
 void DepthNormalPyramid::pyrDown()
@@ -981,8 +986,6 @@ Ptr<QuantizedPyramid> DepthNormal::processImpl(const std::vector<cv::Mat> &src,
 {
   auto pd = makePtr<DepthNormalPyramid>(src[1], mask, distance_threshold, difference_threshold,
                                      num_features, extract_threshold);
-  auto depth = src[1];
-  pd->getDepth(depth);
   return pd;
 }
 
@@ -1694,7 +1697,7 @@ std::vector<Match> Detector::match(
 {
     std::vector<Match> matches;
 
-  CV_Assert(sources.size() == modalities.size());
+ // CV_Assert(sources.size() == modalities.size());
   // Initialize each modality with our sources
   std::vector< Ptr<QuantizedPyramid> > quantizers;
   for (int i = 0; i < (int)modalities.size(); ++i)
@@ -1710,7 +1713,7 @@ std::vector<Match> Detector::match(
 	Ptr<QuantizedPyramid> p = modalities[i]->process(sources, mask);
 	quantizers.push_back(p);
 
-	//logging
+	if (g_isLog)
 	{
 		std::vector<cv::Mat> mats;
 		p->extractData(mats);
@@ -1850,20 +1853,22 @@ void Detector::matchClass(	const LinearMemoryPyramid& lm_pyramid,
 		}
       }
 
-	  //logging
-	  if (template_id == 0)
+	  if (g_isLog)
 	  {
-		  for (int j = 0; j < similarities.size(); ++j)
+		  if (template_id == 0)
 		  {
-			  cv::Mat convertedMat;
-			  similarities.at(j).convertTo(convertedMat, CV_32FC1);
-			  char buffer[1024];
-			  snprintf(buffer, 1024, ".\\log\\Q_modality_%d_similarity_templ_%d.tif", j, template_id);
-			  imageFileIO::FILE_SaveImageTiffR(convertedMat, buffer);
+			  for (int j = 0; j < similarities.size(); ++j)
+			  {
+				  cv::Mat convertedMat;
+				  similarities.at(j).convertTo(convertedMat, CV_32FC1);
+				  char buffer[1024];
+				  snprintf(buffer, 1024, ".\\log\\Q_modality_%d_similarity_templ_%d.tif", j, template_id);
+				  imageFileIO::FILE_SaveImageTiffR(convertedMat, buffer);
 
-			  cv::Mat convertedScore = convertedMat/ (4 * num_features);
-			  snprintf(buffer, 1024, ".\\log\\Q_modality_%d_score_templ_%d.tif", j, template_id);
-			  imageFileIO::FILE_SaveImageTiffR(convertedScore, buffer);
+				  cv::Mat convertedScore = convertedMat / (4 * num_features);
+				  snprintf(buffer, 1024, ".\\log\\Q_modality_%d_score_templ_%d.tif", j, template_id);
+				  imageFileIO::FILE_SaveImageTiffR(convertedScore, buffer);
+			  }
 		  }
 	  }
 
@@ -1878,19 +1883,21 @@ void Detector::matchClass(	const LinearMemoryPyramid& lm_pyramid,
       }
 
 	  //logging
-	  if (template_id == 0)
+	  if (g_isLog)
 	  {
-			cv::Mat convertedMat;
-			total_similarity.convertTo(convertedMat, CV_32FC1);
-			char buffer[1024];
-			snprintf(buffer, 1024, ".\\log\\Q_TotalSimilarity_templ_%d.tif", template_id);
-			imageFileIO::FILE_SaveImageTiffR(convertedMat, buffer);
+		  if (template_id == 0)
+		  {
+			  cv::Mat convertedMat;
+			  total_similarity.convertTo(convertedMat, CV_32FC1);
+			  char buffer[1024];
+			  snprintf(buffer, 1024, ".\\log\\Q_TotalSimilarity_templ_%d.tif", template_id);
+			  imageFileIO::FILE_SaveImageTiffR(convertedMat, buffer);
 
-			cv::Mat convertedScore = convertedMat / (4 * num_features);
-			snprintf(buffer, 1024, ".\\log\\Q_TotalScore_templ_%d.tif",template_id);
-			imageFileIO::FILE_SaveImageTiffR(convertedScore, buffer);
+			  cv::Mat convertedScore = convertedMat / (4 * num_features);
+			  snprintf(buffer, 1024, ".\\log\\Q_TotalScore_templ_%d.tif", template_id);
+			  imageFileIO::FILE_SaveImageTiffR(convertedScore, buffer);
+		  }
 	  }
-
       // Find initial matches
       std::vector<Match> candidates;
       for (int r = 0; r < total_similarity.rows; ++r)
@@ -2026,18 +2033,21 @@ int Detector::addTemplate(const std::vector<Mat>& sources, const std::string& cl
     Ptr<QuantizedPyramid> qp = modalities[modIdx]->process(sources, object_mask);
 
 	//logging
-	if (numTemplates() == 0)
+	if (g_isLog)
 	{
-		int currentTemplIdx = numTemplates();
-		std::vector<cv::Mat> mats;
-		qp->extractData(mats);
-		for (int j = 0; j < mats.size(); ++j)
+		if (numTemplates() == 0)
 		{
-			cv::Mat convertedMat;
-			mats.at(j).convertTo(convertedMat, CV_32FC1);
-			char buffer[1024];
-			snprintf(buffer, 1024, ".\\log\\modality_%d_mat_%d_templ_%d.tif", modIdx, j, currentTemplIdx);
-			imageFileIO::FILE_SaveImageTiffR(convertedMat, buffer);
+			int currentTemplIdx = numTemplates();
+			std::vector<cv::Mat> mats;
+			qp->extractData(mats);
+			for (int j = 0; j < mats.size(); ++j)
+			{
+				cv::Mat convertedMat;
+				mats.at(j).convertTo(convertedMat, CV_32FC1);
+				char buffer[1024];
+				snprintf(buffer, 1024, ".\\log\\modality_%d_mat_%d_templ_%d.tif", modIdx, j, currentTemplIdx);
+				imageFileIO::FILE_SaveImageTiffR(convertedMat, buffer);
+			}
 		}
 	}
     for (int l = 0; l < pyramid_levels; ++l)
@@ -2234,7 +2244,7 @@ void Detector::writeClasses(const std::string& format) const
 }
 
 
-static const int T_DEFAULTS[] = { 5, 8 };
+static const int T_DEFAULTS[] = { 5 };
 
 Ptr<Detector> getDefaultLINE()
 {
@@ -2250,7 +2260,9 @@ Ptr<Detector> getDefaultLINEMOD()
 	std::vector< Ptr<Modality> > modalities;
 	modalities.push_back(makePtr<ColorGradient>());
 	modalities.push_back(makePtr<DepthNormal>());
-	return makePtr<Detector>(modalities, std::vector<int>(T_DEFAULTS, T_DEFAULTS + 2));
+	std::vector<int> t;
+	t.push_back(T_DEFAULTS[0]);
+	return makePtr<Detector>(modalities, t);
 }
 
 }

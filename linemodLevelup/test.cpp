@@ -41,8 +41,8 @@ void train()
 	int numberOfData = 1313;
 	std::string depthBasePath = "F:\\ronaldwork\\3rd_source\\6DPose\\public\\datasets\\hinterstoisser\\train\\01\\depth\\";
 	std::string rgbBasePath = "F:\\ronaldwork\\3rd_source\\6DPose\\public\\datasets\\hinterstoisser\\train\\01\\rgb\\";;
-	cv::Ptr<linemodLevelup::Detector> detector = linemodLevelup::getDefaultLINE();
-	//cv::Ptr<linemodLevelup::Detector> detector = linemodLevelup::getDefaultLINEMOD();
+	//cv::Ptr<linemodLevelup::Detector> detector = linemodLevelup::getDefaultLINE();
+	cv::Ptr<linemodLevelup::Detector> detector = linemodLevelup::getDefaultLINEMOD();
 
 	for (int i = 0; i < numberOfData; ++i)
 	{
@@ -103,7 +103,7 @@ void detect()
 	Mat rgbOriginal = cv::imread(rgbBasePath + buffer);
 	Mat depthOriginal = cv::imread(depthBasePath + buffer, CV_LOAD_IMAGE_ANYCOLOR | CV_LOAD_IMAGE_ANYDEPTH);
 
-	float score = 40;
+	float score = 60;
 	//cv::Rect roi = cv::Rect(0, 0, 640, 480);
 	cv::Rect roi = cv::Rect(169, 127, 240, 240);
 	Mat rgb = rgbOriginal(roi);
@@ -162,8 +162,8 @@ void detect()
 
 int main(){
 
-	
-	mini_train();
+	train();
+	//mini_train();
 	detect();
 	std::cout << "press enter to continue...\n";
 	getchar();
