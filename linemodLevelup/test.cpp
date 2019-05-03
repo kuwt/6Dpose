@@ -70,8 +70,8 @@ void mini_train()
 	int targetIdx = 156;
 	std::string depthBasePath = "F:\\ronaldwork\\3rd_source\\6DPose\\public\\datasets\\hinterstoisser\\train\\01\\depth\\";
 	std::string rgbBasePath = "F:\\ronaldwork\\3rd_source\\6DPose\\public\\datasets\\hinterstoisser\\train\\01\\rgb\\";;
-	cv::Ptr<linemodLevelup::Detector> detector = linemodLevelup::getDefaultLINE();
-	//cv::Ptr<linemodLevelup::Detector> detector = linemodLevelup::getDefaultLINEMOD();
+	//cv::Ptr<linemodLevelup::Detector> detector = linemodLevelup::getDefaultLINE();
+	cv::Ptr<linemodLevelup::Detector> detector = linemodLevelup::getDefaultLINEMOD();
 	{
 		char buffer[1024];
 		snprintf(buffer, 1024, "%04d.png", targetIdx);
@@ -111,13 +111,13 @@ void detect()
 
 	vector<Mat> sources;
 	sources.push_back(rgb);
-	//sources.push_back(depth);
+	sources.push_back(depth);
 
 	vector<string> classes;
 	classes.push_back("01_template");
 
-	cv::Ptr<linemodLevelup::Detector> detector = linemodLevelup::getDefaultLINE();
-	//cv::Ptr<linemodLevelup::Detector> detector = linemodLevelup::getDefaultLINEMOD();
+	//cv::Ptr<linemodLevelup::Detector> detector = linemodLevelup::getDefaultLINE();
+	cv::Ptr<linemodLevelup::Detector> detector = linemodLevelup::getDefaultLINEMOD();
 	detector->readClasses(classes, "F:\\ronaldwork\\temp\\writeClasses\\%s.yaml");
 
 

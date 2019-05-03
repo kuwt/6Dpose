@@ -809,6 +809,8 @@ public:
   virtual void pyrDown();
 
   void getDepth(Mat& depth){this->depth = depth.clone();}
+
+  virtual bool extractData(std::vector<cv::Mat> &mats) const;
 protected:
   Mat mask;
 
@@ -941,6 +943,14 @@ bool DepthNormalPyramid::extractTemplate(Template& templ) const
 
   return true;
 }
+
+bool DepthNormalPyramid::extractData(std::vector<cv::Mat> &mats) const
+{
+	mats.clear();
+	mats.push_back(normal);
+	return true;
+}
+
 
 DepthNormal::DepthNormal()
   : distance_threshold(2000),
@@ -1676,24 +1686,46 @@ Detector::Detector(const std::vector< Ptr<Modality> >& _modalities,
 {
 }
 
-std::vector<Match> Detector::match(const std::vector<Mat>& sources, float threshold,
-                      const std::vector<std::string>& class_ids, const std::vector<Mat>& masks) const
+std::vector<Match> Detector::match(
+	const std::vector<Mat>& sources, 
+	float threshold,
+    const std::vector<std::string>& class_ids,
+	const std::vector<Mat>& masks) const
 {
     std::vector<Match> matches;
 
   CV_Assert(sources.size() == modalities.size());
   // Initialize each modality with our sources
   std::vector< Ptr<QuantizedPyramid> > quantizers;
-  for (int i = 0; i < (int)modalities.size(); ++i){
-    Mat mask, source;
-    source = sources[i];
-    if(!masks.empty()){
-      CV_Assert(masks.size() == modalities.size());
-      mask = masks[i];
-    }
-    CV_Assert(mask.empty() || mask.size() == source.size());
-    quantizers.push_back(modalities[i]->process(sources, mask));
+  for (int i = 0; i < (int)modalities.size(); ++i)
+  {
+	Mat mask, source;
+	source = sources[i];
+	if(!masks.empty())
+	{
+		CV_Assert(masks.size() == modalities.size());
+		mask = masks[i];
+	}
+	CV_Assert(mask.empty() || mask.size() == source.size());
+	Ptr<QuantizedPyramid> p = modalities[i]->process(sources, mask);
+	quantizers.push_back(p);
+
+	//logging
+	{
+		std::vector<cv::Mat> mats;
+		p->extractData(mats);
+		for (int j = 0; j < mats.size(); ++j)
+		{
+			cv::Mat convertedMat;
+			mats.at(j).convertTo(convertedMat, CV_32FC1);
+			char buffer[1024];
+			snprintf(buffer, 1024, ".\\log\\Q_modality_%d_mat_%d.tif", i, j);
+			imageFileIO::FILE_SaveImageTiffR(convertedMat, buffer);
+		}
+	}
   }
+
+
   // pyramid level -> modality -> quantization
   LinearMemoryPyramid lm_pyramid(pyramid_levels,
                                  std::vector<LinearMemories>(modalities.size(), LinearMemories(8)));
@@ -1707,8 +1739,10 @@ std::vector<Match> Detector::match(const std::vector<Mat>& sources, float thresh
 
     if (l > 0)
     {
-      for (int i = 0; i < (int)quantizers.size(); ++i)
-        quantizers[i]->pyrDown();
+		for (int i = 0; i < (int)quantizers.size(); ++i)
+		{
+			quantizers[i]->pyrDown();
+		}
     }
 
     Mat quantized, spread_quantized;
@@ -1720,8 +1754,10 @@ std::vector<Match> Detector::match(const std::vector<Mat>& sources, float thresh
       computeResponseMaps(spread_quantized, response_maps);
 
       LinearMemories& memories = lm_level[i];
-      for (int j = 0; j < 8; ++j)
-        linearize(response_maps[j], memories[j], T);
+	  for (int j = 0; j < 8; ++j)
+	  {
+		  linearize(response_maps[j], memories[j], T);
+	  }
     }
 
     sizes.push_back(quantized.size());
@@ -1731,8 +1767,10 @@ std::vector<Match> Detector::match(const std::vector<Mat>& sources, float thresh
   {
     // Match all templates
     TemplatesMap::const_iterator it = class_templates.begin(), itend = class_templates.end();
-    for ( ; it != itend; ++it)
-      matchClass(lm_pyramid, sizes, threshold, matches, it->first, it->second);
+	for (; it != itend; ++it)
+	{
+		matchClass(lm_pyramid, sizes, threshold, matches, it->first, it->second);
+	}
   }
   else
   {
@@ -1740,8 +1778,10 @@ std::vector<Match> Detector::match(const std::vector<Mat>& sources, float thresh
     for (int i = 0; i < (int)class_ids.size(); ++i)
     {
       TemplatesMap::const_iterator it = class_templates.find(class_ids[i]);
-      if (it != class_templates.end())
-        matchClass(lm_pyramid, sizes, threshold, matches, it->first, it->second);
+	  if (it != class_templates.end())
+	  {
+		  matchClass(lm_pyramid, sizes, threshold, matches, it->first, it->second);
+	  }
     }
   }
 
@@ -1762,16 +1802,18 @@ struct MatchPredicate
   float threshold;
 };
 
-void Detector::matchClass(const LinearMemoryPyramid& lm_pyramid,
-                          const std::vector<Size>& sizes,
-                          float threshold, std::vector<Match>& matches,
-                          const std::string& class_id,
-                          const std::vector<TemplatePyramid>& template_pyramids) const
+void Detector::matchClass(	const LinearMemoryPyramid& lm_pyramid,
+							const std::vector<Size>& sizes,
+							float threshold, 
+							std::vector<Match>& matches,
+							const std::string& class_id,
+							const std::vector<TemplatePyramid>& template_pyramids) const
 {
 //    CV_Assert(scales.size()>0);
 
     // For proper scale templates
-    for (size_t template_id = 0; template_id < template_pyramids.size(); ++template_id){
+    for (size_t template_id = 0; template_id < template_pyramids.size(); ++template_id)
+	{
       const TemplatePyramid& tp = template_pyramids[template_id];
       // First match over the whole image at the lowest pyramid level
       /// @todo Factor this out into separate function
@@ -1785,28 +1827,69 @@ void Detector::matchClass(const LinearMemoryPyramid& lm_pyramid,
       int feature_64 = -1;
       for (int i = 0; i < (int)modalities.size(); ++i)
       {
-        const Template& templ = tp[lowest_start + i];
-        num_features += static_cast<int>(templ.features.size());
-        if(feature_64<=0){
-            if(templ.features.size()<64){
-                feature_64 = 1;
-            }else if (templ.features.size()<8192) {
-                feature_64 = 2;
-            }
-        }
-        if(feature_64 == 1){
-            similarity_64(lowest_lm[i], templ, similarities[i], sizes.back(), lowest_T);
-        }else if (feature_64 == 2) {
-            similarity(lowest_lm[i], templ, similarities[i], sizes.back(), lowest_T);
-        }
+		const Template& templ = tp[lowest_start + i];
+		num_features += static_cast<int>(templ.features.size());
+		if(feature_64<=0)
+		{
+			if(templ.features.size()<64)
+			{
+				feature_64 = 1;
+			}
+			else if (templ.features.size()<8192) 
+			{
+				feature_64 = 2;
+			}
+		}
+		if(feature_64 == 1)
+		{
+			similarity_64(lowest_lm[i], templ, similarities[i], sizes.back(), lowest_T);
+		}
+		else if (feature_64 == 2)
+		{
+			similarity(lowest_lm[i], templ, similarities[i], sizes.back(), lowest_T);
+		}
       }
 
+	  //logging
+	  if (template_id == 0)
+	  {
+		  for (int j = 0; j < similarities.size(); ++j)
+		  {
+			  cv::Mat convertedMat;
+			  similarities.at(j).convertTo(convertedMat, CV_32FC1);
+			  char buffer[1024];
+			  snprintf(buffer, 1024, ".\\log\\Q_modality_%d_similarity_templ_%d.tif", j, template_id);
+			  imageFileIO::FILE_SaveImageTiffR(convertedMat, buffer);
+
+			  cv::Mat convertedScore = convertedMat/ (4 * num_features);
+			  snprintf(buffer, 1024, ".\\log\\Q_modality_%d_score_templ_%d.tif", j, template_id);
+			  imageFileIO::FILE_SaveImageTiffR(convertedScore, buffer);
+		  }
+	  }
+
       Mat total_similarity;
-      if(feature_64 == 1){
+      if(feature_64 == 1)
+	  {
           addSimilarities_64(similarities, total_similarity);
-      }else if (feature_64 == 2) {
+      }
+	  else if (feature_64 == 2)
+	  {
           addSimilarities(similarities, total_similarity);
       }
+
+	  //logging
+	  if (template_id == 0)
+	  {
+			cv::Mat convertedMat;
+			total_similarity.convertTo(convertedMat, CV_32FC1);
+			char buffer[1024];
+			snprintf(buffer, 1024, ".\\log\\Q_TotalSimilarity_templ_%d.tif", template_id);
+			imageFileIO::FILE_SaveImageTiffR(convertedMat, buffer);
+
+			cv::Mat convertedScore = convertedMat / (4 * num_features);
+			snprintf(buffer, 1024, ".\\log\\Q_TotalScore_templ_%d.tif",template_id);
+			imageFileIO::FILE_SaveImageTiffR(convertedScore, buffer);
+	  }
 
       // Find initial matches
       std::vector<Match> candidates;
@@ -1863,23 +1946,32 @@ void Detector::matchClass(const LinearMemoryPyramid& lm_pyramid,
           {
             const Template& templ = tp[start + i];
             numFeatures += static_cast<int>(templ.features.size());
-            if(feature_64<=0){
-                if(templ.features.size()<64){
+            if(feature_64<=0)
+			{
+                if(templ.features.size()<64)
+				{
                     feature_64 = 1;
-                }else if (templ.features.size()<8192) {
+                }else if (templ.features.size()<8192)
+				{
                     feature_64 = 2;
                 }
             }
-            if(feature_64 == 1){
+            if(feature_64 == 1)
+			{
                 similarityLocal_64(lms[i], templ, similarities2[i], size, T, Point(x, y));
-            }else if (feature_64 == 2) {
+            }
+			else if (feature_64 == 2)
+			{
                 similarityLocal(lms[i], templ, similarities2[i], size, T, Point(x, y));
             }
           }
 
-          if(feature_64 == 1){
+          if(feature_64 == 1)
+		  {
               addSimilarities_64(similarities2, total_similarity2);
-          }else if (feature_64 == 2) {
+          }
+		  else if (feature_64 == 2)
+		  {
               addSimilarities(similarities2, total_similarity2);
           }
 
@@ -1933,7 +2025,7 @@ int Detector::addTemplate(const std::vector<Mat>& sources, const std::string& cl
     // Extract a template at each pyramid level
     Ptr<QuantizedPyramid> qp = modalities[modIdx]->process(sources, object_mask);
 
-
+	//logging
 	if (numTemplates() == 0)
 	{
 		int currentTemplIdx = numTemplates();
