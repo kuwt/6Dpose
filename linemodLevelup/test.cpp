@@ -38,9 +38,19 @@ std::string type2str(int type) {
 
 void train()
 {
-	int numberOfData = 1313;
-	std::string depthBasePath = "F:\\ronaldwork\\3rd_source\\6DPose\\public\\datasets\\hinterstoisser\\train\\01\\depth\\";
-	std::string rgbBasePath = "F:\\ronaldwork\\3rd_source\\6DPose\\public\\datasets\\hinterstoisser\\train\\01\\rgb\\";;
+	/***********params **********************/
+	int numberOfData = 3938;
+	//std::string depthBasePath = "F:\\ronaldwork\\3rd_source\\6DPose\\public\\datasets\\hinterstoisser\\train\\01\\depth\\";
+	//std::string rgbBasePath = "F:\\ronaldwork\\3rd_source\\6DPose\\public\\datasets\\hinterstoisser\\train\\01\\rgb\\";;
+	//std::string depthBasePath = "F:\\ronaldwork\\3rd_source\\6DPose\\public\\datasets\\hinterstoisser\\train\\01\\depth\\";
+	//std::string rgbBasePath = "F:\\ronaldwork\\3rd_source\\6DPose\\public\\datasets\\hinterstoisser\\train\\01\\rgb\\";;
+
+	std::string depthBasePath = "F:\\ronaldwork\\temp\\depth\\";
+	std::string rgbBasePath = "F:\\ronaldwork\\temp\\rgb\\";
+	
+	std::string className = "01_template";
+	std::string classPath = "F:\\ronaldwork\\temp\\writeClasses\\";
+	/***********main **********************/
 	//cv::Ptr<linemodLevelup::Detector> detector = linemodLevelup::getDefaultLINE();
 	cv::Ptr<linemodLevelup::Detector> detector = linemodLevelup::getDefaultLINEMOD();
 
@@ -57,19 +67,23 @@ void train()
 		sources.push_back(depth);
 
 		
-		detector->addTemplate(sources, "01_template", cv::Mat());
+		detector->addTemplate(sources, className, cv::Mat());
 		
 		cout << "template done " <<i << "\n";
 	}
-	detector->writeClasses(std::string("F:\\ronaldwork\\temp\\") + "writeClasses\\%s.yaml");
+	detector->writeClasses(classPath + "%s.yaml");
 	cout << "template finish " << "\n";
 }
 
 void mini_train()
 {
+	/***********params **********************/
 	int targetIdx = 156;
 	std::string depthBasePath = "F:\\ronaldwork\\3rd_source\\6DPose\\public\\datasets\\hinterstoisser\\train\\01\\depth\\";
 	std::string rgbBasePath = "F:\\ronaldwork\\3rd_source\\6DPose\\public\\datasets\\hinterstoisser\\train\\01\\rgb\\";;
+	std::string className = "01_template";
+	std::string classPath = "F:\\ronaldwork\\temp\\writeClasses\\";
+	/***********main **********************/
 	//cv::Ptr<linemodLevelup::Detector> detector = linemodLevelup::getDefaultLINE();
 	cv::Ptr<linemodLevelup::Detector> detector = linemodLevelup::getDefaultLINEMOD();
 	{
@@ -84,28 +98,33 @@ void mini_train()
 		sources.push_back(depth);
 
 
-		detector->addTemplate(sources, "01_template", cv::Mat());
+		detector->addTemplate(sources, className, cv::Mat());
 
 		cout << "template done " << targetIdx << "\n";
 	}
-	detector->writeClasses(std::string("F:\\ronaldwork\\temp\\") + "writeClasses\\%s.yaml");
+	detector->writeClasses(classPath + "%s.yaml");
 }
 
 void detect()
 {
+	/***********params **********************/
 	int targetIdx = 156;
 	std::string rgbBasePath = "F:\\ronaldwork\\3rd_source\\6DPose\\public\\datasets\\hinterstoisser\\train\\01\\rgb\\";
 	std::string depthBasePath = "F:\\ronaldwork\\3rd_source\\6DPose\\public\\datasets\\hinterstoisser\\train\\01\\depth\\";;
+	float score = 60;
 
+	//cv::Rect roi = cv::Rect(0, 0, 640, 480);
+	cv::Rect roi = cv::Rect(169, 127, 240, 240);
+	std::string className = "01_template";
+	std::string classPath = "F:\\ronaldwork\\temp\\writeClasses\\";
+
+	/***********main **********************/
 	char buffer[1024];
 	snprintf(buffer, 1024, "%04d.png", targetIdx);
 
 	Mat rgbOriginal = cv::imread(rgbBasePath + buffer);
 	Mat depthOriginal = cv::imread(depthBasePath + buffer, CV_LOAD_IMAGE_ANYCOLOR | CV_LOAD_IMAGE_ANYDEPTH);
 
-	float score = 60;
-	//cv::Rect roi = cv::Rect(0, 0, 640, 480);
-	cv::Rect roi = cv::Rect(169, 127, 240, 240);
 	Mat rgb = rgbOriginal(roi);
 	Mat depth = depthOriginal(roi);
 
@@ -114,12 +133,11 @@ void detect()
 	sources.push_back(depth);
 
 	vector<string> classes;
-	classes.push_back("01_template");
+	classes.push_back(className);
 
 	//cv::Ptr<linemodLevelup::Detector> detector = linemodLevelup::getDefaultLINE();
 	cv::Ptr<linemodLevelup::Detector> detector = linemodLevelup::getDefaultLINEMOD();
-	detector->readClasses(classes, "F:\\ronaldwork\\temp\\writeClasses\\%s.yaml");
-
+	detector->readClasses(classes, classPath + "%s.yaml");
 
 	auto start_time = std::chrono::high_resolution_clock::now();
 	vector<linemodLevelup::Match> matches = detector->match(sources, score, classes);
@@ -160,11 +178,65 @@ void detect()
 	waitKey(0);
 }
 
-int main(){
 
+void imagesTemplateGeneration()
+{
+	/***********params **********************/
+	int numberOfData = 1313;
+	std::string rgbBasePath = "F:\\ronaldwork\\3rd_source\\6DPose\\public\\datasets\\hinterstoisser\\train\\01\\rgb\\";;
+	std::string depthBasePath = "F:\\ronaldwork\\3rd_source\\6DPose\\public\\datasets\\hinterstoisser\\train\\01\\depth\\";
+
+	std::string rgbBasePathOut = "F:\\ronaldwork\\temp\\rgb\\";
+	std::string depthBasePathOut = "F:\\ronaldwork\\temp\\depth\\";
+
+	/***********main **********************/
+	std::vector<cv::Mat> rgbSrcs;
+	std::vector<cv::Mat> depthSrcs;
+	for (int i = 0; i < numberOfData; ++i)
+	{
+		char buffer[1024];
+		snprintf(buffer, 1024, "%04d.png", i);
+
+		Mat rgb = cv::imread(rgbBasePath + buffer);
+		Mat depth = cv::imread(depthBasePath + buffer, CV_LOAD_IMAGE_ANYCOLOR | CV_LOAD_IMAGE_ANYDEPTH);
+
+		rgbSrcs.push_back(rgb);
+		depthSrcs.push_back(depth);
+
+		cout << "Load src  " << i << "\n";
+	}
+
+	int imageIdx = 0;
+	std::vector<double> scales = { 0.4, 0.5, 0.6 };
+	for (int i = 0; i < scales.size(); ++i)
+	{
+		for (int j = 0; j < rgbSrcs.size(); ++j)
+		{
+			char buffer[1024];
+			snprintf(buffer, 1024, "%04d.png", imageIdx);
+
+			cv::Mat rgb;
+			cv::Mat depth;
+			cv::resize(rgbSrcs.at(j), rgb, cv::Size(), scales.at(i), scales.at(i), CV_INTER_CUBIC);
+			cv::resize(depthSrcs.at(j), depth, cv::Size(), scales.at(i), scales.at(i),  CV_INTER_CUBIC);
+
+			cv::imwrite(rgbBasePathOut + buffer, rgb);
+			cv::imwrite(depthBasePathOut + buffer, depth);
+			imageIdx++;
+			cout << "write template " << imageIdx<< "\n";
+		}
+
+	}
+	cout << "template finish " << "\n";
+}
+
+int main()
+{
+
+	//imagesTemplateGeneration();
 	train();
 	//mini_train();
-	detect();
+	//detect();
 	std::cout << "press enter to continue...\n";
 	getchar();
     return 0;
