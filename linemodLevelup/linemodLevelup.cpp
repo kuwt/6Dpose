@@ -6,7 +6,7 @@
 #include <assert.h>
 #include "imageFileIO.h"
 
-bool g_isLog = false;
+bool g_isLog = true;
 
 using namespace std;
 using namespace cv;
@@ -736,6 +736,11 @@ static void quantizedNormals(const Mat& src, Mat& dst, int distance_threshold,
 
     for (int l_x = l_r; l_x < l_W - l_r - 1; ++l_x)
     {
+		// testing code
+		//if (l_x == 110 && l_y == 96)
+		//{
+		//	int a = 0;
+		//}
 		// for each line, lp_line is iterating at the end of thos loop.
       long l_d = lp_line[0];
 
@@ -780,7 +785,14 @@ static void quantizedNormals(const Mat& src, Mat& dst, int distance_threshold,
           int l_val2 = static_cast<int>(l_ny * l_offsety + l_offsety);
           int l_val3 = static_cast<int>(l_nz * GRANULARITY + GRANULARITY);
 
-          *lp_norm = NORMAL_LUT[l_val3][l_val2][l_val1];
+			if (l_val1 >= GRANULARITY || l_val2 >= GRANULARITY || l_val3 >= GRANULARITY)
+			{
+				*lp_norm = 0;
+			}
+			else
+			{
+				*lp_norm = NORMAL_LUT[l_val3][l_val2][l_val1];
+			}
         }
         else
         {
