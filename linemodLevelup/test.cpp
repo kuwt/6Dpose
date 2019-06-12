@@ -10,46 +10,23 @@
 using namespace std;
 using namespace cv;
 
+/**********************
 
+Batch train
 
-// for test
-std::string type2str(int type) {
-  std::string r;
-
-  uchar depth = type & CV_MAT_DEPTH_MASK;
-  uchar chans = 1 + (type >> CV_CN_SHIFT);
-
-  switch ( depth ) {
-    case CV_8U:  r = "8U"; break;
-    case CV_8S:  r = "8S"; break;
-    case CV_16U: r = "16U"; break;
-    case CV_16S: r = "16S"; break;
-    case CV_32S: r = "32S"; break;
-    case CV_32F: r = "32F"; break;
-    case CV_64F: r = "64F"; break;
-    default:     r = "User"; break;
-  }
-
-  r += "C";
-  r += (chans+'0');
-
-  return r;
-}
-
+***********************/
 void train()
 {
 	/***********params **********************/
-	int numberOfData = 3938;
-	//std::string depthBasePath = "F:\\ronaldwork\\3rd_source\\6DPose\\public\\datasets\\hinterstoisser\\train\\01\\depth\\";
-	//std::string rgbBasePath = "F:\\ronaldwork\\3rd_source\\6DPose\\public\\datasets\\hinterstoisser\\train\\01\\rgb\\";;
+	int numberOfData = 864;
 	//std::string depthBasePath = "F:\\ronaldwork\\3rd_source\\6DPose\\public\\datasets\\hinterstoisser\\train\\01\\depth\\";
 	//std::string rgbBasePath = "F:\\ronaldwork\\3rd_source\\6DPose\\public\\datasets\\hinterstoisser\\train\\01\\rgb\\";;
 
-	std::string depthBasePath = "F:\\ronaldwork\\temp\\depth\\";
-	std::string rgbBasePath = "F:\\ronaldwork\\temp\\rgb\\";
+	std::string depthBasePath = "F:\\ronaldwork\\testData\\temp\\set3\\depth\\";
+	std::string rgbBasePath = "F:\\ronaldwork\\testData\\temp\\set3\\rgb\\";
 	
 	std::string className = "01_template";
-	std::string classPath = "F:\\ronaldwork\\temp\\writeClasses\\";
+	std::string classPath = "F:\\ronaldwork\\testData\\temp\\set3\\writeClasses\\";
 	/***********main **********************/
 	//cv::Ptr<linemodLevelup::Detector> detector = linemodLevelup::getDefaultLINE();
 	cv::Ptr<linemodLevelup::Detector> detector = linemodLevelup::getDefaultLINEMOD();
@@ -75,14 +52,23 @@ void train()
 	cout << "template finish " << "\n";
 }
 
+/**********************
+
+only train a datum
+
+***********************/
 void mini_train()
 {
 	/***********params **********************/
-	int targetIdx = 156;
-	std::string depthBasePath = "F:\\ronaldwork\\3rd_source\\6DPose\\public\\datasets\\hinterstoisser\\train\\01\\depth\\";
-	std::string rgbBasePath = "F:\\ronaldwork\\3rd_source\\6DPose\\public\\datasets\\hinterstoisser\\train\\01\\rgb\\";;
-	std::string className = "01_template";
-	std::string classPath = "F:\\ronaldwork\\temp\\writeClasses\\";
+	int targetIdx = 2;
+	//std::string depthBasePath = "F:\\ronaldwork\\3rd_source\\6DPose\\public\\datasets\\hinterstoisser\\train\\01\\depth\\";
+	//std::string rgbBasePath = "F:\\ronaldwork\\3rd_source\\6DPose\\public\\datasets\\hinterstoisser\\train\\01\\rgb\\";;
+
+	std::string depthBasePath = "F:\\ronaldwork\\testData\\temp\\set2\\depth\\";
+	std::string rgbBasePath = "F:\\ronaldwork\\testData\\temp\\rgb\\";
+
+	std::string className = "02_template";
+	std::string classPath = "F:\\ronaldwork\\testData\\temp\writeClasses\\";
 	/***********main **********************/
 	//cv::Ptr<linemodLevelup::Detector> detector = linemodLevelup::getDefaultLINE();
 	cv::Ptr<linemodLevelup::Detector> detector = linemodLevelup::getDefaultLINEMOD();
@@ -105,18 +91,65 @@ void mini_train()
 	detector->writeClasses(classPath + "%s.yaml");
 }
 
+
+/**********************
+
+key image to a dark background
+The new image size will be greater
+than the old one in the form of square
+
+***********************/
+void keyTobackground(const cv::Mat &in,cv::Mat &out)
+{
+	int sizefactor = 16 * 5;
+	int inputDimension = (in.size().width > in.size().height) ? in.size().width : in.size().height;
+
+	int remainder = inputDimension % sizefactor;
+
+	int Tdimension = 0;
+	if (remainder == 0)
+	{
+		out = in.clone();
+		return;
+	}
+	else
+	{
+		int temp = (float)inputDimension / (float)sizefactor;
+		Tdimension = (temp + 1) * sizefactor;
+
+		out = cv::Mat::zeros(cv::Size(Tdimension, Tdimension), in.type());
+
+		cv::Rect roi = 
+			cv::Rect(
+			out.size().width / 2 - in.size().width / 2,
+			out.size().height / 2 - in.size().height / 2,
+			in.size().width,
+			in.size().height);
+
+		Mat out_roi = out(roi);
+		in.copyTo(out_roi);
+		
+		return;
+	}
+}
+
+/**********************
+
+detect a datum
+
+***********************/
 void detect()
 {
 	/***********params **********************/
-	int targetIdx = 156;
-	std::string rgbBasePath = "F:\\ronaldwork\\3rd_source\\6DPose\\public\\datasets\\hinterstoisser\\train\\01\\rgb\\";
-	std::string depthBasePath = "F:\\ronaldwork\\3rd_source\\6DPose\\public\\datasets\\hinterstoisser\\train\\01\\depth\\";;
+	int targetIdx = 31;
+	std::string rgbBasePath = "F:\\ronaldwork\\testData\\temp\\set3\\rgb\\";
+	std::string depthBasePath = "F:\\ronaldwork\\testData\\temp\\set3\\depth\\";;
 	float score = 60;
 
 	//cv::Rect roi = cv::Rect(0, 0, 640, 480);
-	cv::Rect roi = cv::Rect(169, 127, 240, 240);
+	cv::Rect roi = cv::Rect(449, 249, 57, 71);
 	std::string className = "01_template";
-	std::string classPath = "F:\\ronaldwork\\temp\\writeClasses\\";
+	std::string classPath = "F:\\ronaldwork\\testData\\temp\\set3\\writeClasses\\";
 
 	/***********main **********************/
 	char buffer[1024];
@@ -125,9 +158,16 @@ void detect()
 	Mat rgbOriginal = cv::imread(rgbBasePath + buffer);
 	Mat depthOriginal = cv::imread(depthBasePath + buffer, CV_LOAD_IMAGE_ANYCOLOR | CV_LOAD_IMAGE_ANYDEPTH);
 
-	Mat rgb = rgbOriginal(roi);
-	Mat depth = depthOriginal(roi);
+	Mat rgbCrop = rgbOriginal(roi);
+	Mat depthCrop = depthOriginal(roi);
 
+	Mat rgb;
+	Mat depth;
+	keyTobackground(rgbCrop, rgb);
+	keyTobackground(depthCrop, depth);
+
+	cv::imwrite("log\\inrgb.png", rgb);
+	cv::imwrite("log\\indepth.png", depth);
 	vector<Mat> sources;
 	sources.push_back(rgb);
 	sources.push_back(depth);
@@ -148,13 +188,14 @@ void detect()
 	vector<Rect> boxes;
 	vector<float> scores;
 	vector<int> idxs;
+	float r = 30;
 	for (auto match : matches)
 	{
 		Rect box;
 		box.x = match.x;
 		box.y = match.y;
-		box.width = 40;
-		box.height = 40;
+		box.width = r;
+		box.height = r;
 		boxes.push_back(box);
 		scores.push_back(match.similarity);
 	}
@@ -162,14 +203,19 @@ void detect()
 	cout << "nms matches: " << idxs.size() << endl;
 
 	Mat draw = rgb;
-	for (auto idx : idxs)
+	for (int idx = 0; idx < idxs.size() && idx < 3; ++idx)
 	{
+		
 		auto match = matches[idx];
-		int r = 40;
 		cout << "x: " << match.x << "\ty: " << match.y
 			<< "\ttemplateID: " << match.template_id << "\n"
 			<< "\tsimilarity: " << match.similarity << "\n";
-		cv::circle(draw, cv::Point(match.x + r, match.y + r), r, cv::Scalar(255, 0, 255), 2);
+		cv::rectangle(
+			draw, 
+			cv::Point(match.x, match.y), 
+			cv::Point(match.x + r, match.y + r),
+			cv::Scalar(255,0,255));
+		
 		cv::putText(draw, to_string(int(round(match.similarity))),
 			Point(match.x + r - 10, match.y - 3), FONT_HERSHEY_PLAIN, 1.4, Scalar(0, 255, 255));
 
@@ -179,6 +225,12 @@ void detect()
 }
 
 
+
+/**********************
+
+scale template and 
+make data base
+***********************/
 void imagesTemplateGeneration()
 {
 	/***********params **********************/
@@ -234,9 +286,9 @@ int main()
 {
 
 	//imagesTemplateGeneration();
-	train();
 	//mini_train();
-	//detect();
+	//train();
+	detect();
 	std::cout << "press enter to continue...\n";
 	getchar();
     return 0;
